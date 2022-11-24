@@ -1,30 +1,47 @@
-package android.websocket
+package android.websocket.presentation.view
 
 import android.annotation.SuppressLint
 import android.graphics.Color
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
+import android.websocket.R
 import android.websocket.databinding.ActivityMainBinding
+import android.websocket.domain.model.CurrenciesModel
+import android.websocket.domain.model.CurrencyRecyclerViewItems
+import android.websocket.presentation.adapter.CurrencyAdapter
 import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.gson.Gson
 import org.java_websocket.client.WebSocketClient
 import org.java_websocket.handshake.ServerHandshake
 import org.json.JSONObject
 import java.net.URI
-import javax.net.ssl.SSLSocketFactory
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var webSocketClient: WebSocketClient
+    lateinit var currencyAdapter: CurrencyAdapter
+    val gson = Gson()
+    private var currenciesList: MutableList<CurrencyRecyclerViewItems> = mutableListOf()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        //setContentView(R.layout.activity_main)
+
+        // Init
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
+        currencyAdapter = CurrencyAdapter()
+        binding.listCurrencies.apply {
+            adapter = currencyAdapter
+            layoutManager = LinearLayoutManager(this@MainActivity)
+        }
+
+        /*
         binding.btnSend.setOnClickListener {
             sendMessage()
         }
+        */
     }
 
 
@@ -45,7 +62,9 @@ class MainActivity : AppCompatActivity() {
             override fun onMessage(message: String?) {
                 Log.i(TAG, "onMessage: $message")
                 this@MainActivity.runOnUiThread(java.lang.Runnable {
-                    binding.txtMessage.text = message
+                    val response = gson.fromJson(message, CurrenciesModel::class.java)
+                    setAdapter(response)
+                    //binding.txtMessage.text = message
                 })
             }
 
@@ -74,6 +93,19 @@ class MainActivity : AppCompatActivity() {
         // val socketFactory: SSLSocketFactory = SSLSocketFactory.getDefault() as SSLSocketFactory
         // webSocketClient.setSocketFactory(socketFactory)
         webSocketClient.connect()
+    }
+
+    private fun setAdapter(response: CurrenciesModel) {
+        currenciesList.clear()
+        response.title.let {
+            currenciesList.add(CurrencyRecyclerViewItems.Title(it))
+        }
+        response.row.forEach {
+            it.let {
+                currenciesList.add(CurrencyRecyclerViewItems.Row(it.currencyName, it.currencyAmount))
+            }
+        }
+        currencyAdapter.items = currenciesList
     }
 
     @SuppressLint("HardwareIds")
